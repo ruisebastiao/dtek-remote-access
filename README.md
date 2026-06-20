@@ -41,6 +41,7 @@ Casos principais:
 
 ## Documentacao
 
+- [Desenvolvimento local](docs/DEV.md)
 - [Arquitetura](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Integracao Headscale](docs/HEADSCALE_INTEGRATION.md)
@@ -51,6 +52,8 @@ Casos principais:
 
 ## Estado
 
-Fase inicial de produto. Ainda nao existe implementacao backend/frontend neste
-repo. O primeiro objetivo e fechar a arquitetura e os contratos antes de ligar
-ao Headscale real.
+Fase inicial de produto. Existe um scaffold FastAPI + UI estatica para validar
+a experiencia de gestao antes de ligar ao Headscale real.
+
+Em dev, o servico corre com `DEV_AUTH=true` e usa um utilizador root ficticio.
+Em producao deve validar o cookie/JWT `dtek_sso` emitido pelo `dtek-webhub`.

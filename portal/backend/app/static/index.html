@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <title>DreamForTek Remote Access</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">D</span>
+        <span>
+          <strong>Remote Access</strong>
+          <small>DreamForTek</small>
+        </span>
+      </div>
+      <nav class="nav">
+        <button class="nav-item is-active" data-view="overview">Overview</button>
+        <button class="nav-item" data-view="gateways">Gateways</button>
+        <button class="nav-item" data-view="devices">Equipamentos</button>
+        <button class="nav-item" data-view="users">Users & acesso</button>
+      </nav>
+      <div class="sidebar-footer" id="sessionBox">A carregar sessao...</div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Overview</h1>
+          <p id="pageSubtitle">Estado do acesso remoto industrial.</p>
+        </div>
+        <div class="actions">
+          <button class="ghost" id="refreshBtn">Atualizar</button>
+          <button class="primary" id="enrollBtn">Novo gateway</button>
+        </div>
+      </header>
+      <section id="app" class="content">
+        <div class="loading">A carregar...</div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
+
