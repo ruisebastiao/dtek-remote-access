@@ -10,3 +10,5 @@ WORKLOG
 - Add initial FastAPI service with Hub-compatible JWT validation shape.
 - Add dev-mode root auth, mock Remote Access data and first static management UI.
 - Document local development flow on port 8003.
+- Align Remote Access UI colors and controls with the existing Hub/Helpdesk
+  dark theme.
