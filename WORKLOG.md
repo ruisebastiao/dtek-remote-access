@@ -19,3 +19,5 @@ WORKLOG
   gateways through the API and refreshes the UI.
 - Use `dtek-webhub` as the client source when a real Hub JWT is available,
   syncing only local customer shadows for Remote Access operational data.
+- Add a Sites view and "Novo site" modal so Hub clients can receive local
+  Remote Access sites before gateways are assigned.

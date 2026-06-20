@@ -7,6 +7,7 @@ const state = {
 
 const titles = {
   overview: ["Overview", "Estado do acesso remoto industrial."],
+  sites: ["Sites", "Sites industriais associados aos clientes do Hub."],
   gateways: ["Gateways", "Dispositivos instalados nos clientes."],
   devices: ["Equipamentos", "Alvos industriais acessiveis pela VPN."],
   users: ["Users & acesso", "Permissoes operacionais por utilizador do Hub."],
@@ -69,6 +70,8 @@ function setTitle() {
   const [title, subtitle] = titles[state.view];
   document.getElementById("pageTitle").textContent = title;
   document.getElementById("pageSubtitle").textContent = subtitle;
+  const primary = document.getElementById("primaryActionBtn");
+  primary.textContent = state.view === "sites" ? "Novo site" : "Novo gateway";
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === state.view);
   });
@@ -146,6 +149,33 @@ function renderGateways() {
   return table(["Gateway", "Estado", "Tailnet IP", "Rotas LAN", "Ultimo heartbeat"], rows);
 }
 
+function renderSites() {
+  const rows = state.overview.customers
+    .flatMap((customer) =>
+      customer.sites.map((site) => ({
+        ...site,
+        customer_name: customer.name,
+      }))
+    )
+    .map(
+      (site) => `
+      <tr>
+        <td><strong>${esc(site.name)}</strong><br /><span class="muted">${esc(site.location)}</span></td>
+        <td>${esc(site.customer_name)}</td>
+        <td>${esc(site.id)}</td>
+      </tr>`
+    )
+    .join("");
+  return `
+    <section class="panel">
+      <h2>Sites por cliente</h2>
+      <p class="muted">Os clientes vem do Hub; os sites sao configurados aqui para organizar gateways e equipamentos.</p>
+    </section>
+    <div style="height: 16px"></div>
+    ${table(["Site", "Cliente", "ID"], rows)}
+  `;
+}
+
 function renderDevices() {
   const rows = state.overview.devices
     .map(
@@ -197,6 +227,91 @@ function gatewayIdFromName(name) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 52)}`;
+}
+
+function siteIdFromName(customerId, name) {
+  return `site_${String(customerId || "")
+    .replace(/^hub_client_/, "hub_")
+    .replace(/[^a-z0-9_]+/g, "_")}_${String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40)}`;
+}
+
+function showSiteDialog() {
+  if (!state.overview) return;
+  const customerOptions = state.overview.customers
+    .map((customer) => `<option value="${esc(customer.id)}">${esc(customer.name)}</option>`)
+    .join("");
+
+  const dialog = document.createElement("div");
+  dialog.className = "modal-backdrop";
+  dialog.innerHTML = `
+    <form class="modal modal--small" id="siteForm">
+      <div class="modal__head">
+        <div>
+          <h2>Novo site</h2>
+          <p>Cria um site operacional para um cliente vindo do Hub.</p>
+        </div>
+        <button class="icon-btn" type="button" data-close>&times;</button>
+      </div>
+      <div class="form-grid form-grid--single">
+        <label>
+          Cliente
+          <select id="siteCustomer" required>${customerOptions}</select>
+        </label>
+        <label>
+          Nome do site
+          <input id="siteName" required placeholder="Fabrica principal" />
+        </label>
+        <label>
+          Localizacao
+          <input id="siteLocation" placeholder="Linha 1 / Nave A / Cliente" />
+        </label>
+      </div>
+      <p class="error" id="siteError"></p>
+      <div class="modal__actions">
+        <button class="ghost" type="button" data-close>Cancelar</button>
+        <button class="primary" type="submit">Criar site</button>
+      </div>
+    </form>
+  `;
+  document.body.appendChild(dialog);
+  const customerSelect = dialog.querySelector("#siteCustomer");
+  const nameInput = dialog.querySelector("#siteName");
+  const error = dialog.querySelector("#siteError");
+
+  function close() {
+    dialog.remove();
+  }
+
+  dialog.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", close));
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) close();
+  });
+  nameInput.focus();
+
+  dialog.querySelector("#siteForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    const name = nameInput.value.trim();
+    const payload = {
+      id: siteIdFromName(customerSelect.value, name),
+      customer_id: customerSelect.value,
+      name,
+      location: dialog.querySelector("#siteLocation").value.trim(),
+    };
+    try {
+      await api("/sites", { method: "POST", body: JSON.stringify(payload) });
+      close();
+      state.view = "sites";
+      await load();
+    } catch (err) {
+      error.textContent = err.message;
+    }
+  });
 }
 
 function showGatewayDialog() {
@@ -334,6 +449,7 @@ function render() {
     return;
   }
   if (state.view === "gateways") app.innerHTML = renderGateways();
+  else if (state.view === "sites") app.innerHTML = renderSites();
   else if (state.view === "devices") app.innerHTML = renderDevices();
   else if (state.view === "users") app.innerHTML = renderUsers();
   else app.innerHTML = renderOverview();
@@ -365,6 +481,9 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 });
 
 document.getElementById("refreshBtn").addEventListener("click", load);
-document.getElementById("enrollBtn").addEventListener("click", showGatewayDialog);
+document.getElementById("primaryActionBtn").addEventListener("click", () => {
+  if (state.view === "sites") showSiteDialog();
+  else showGatewayDialog();
+});
 
 load();
