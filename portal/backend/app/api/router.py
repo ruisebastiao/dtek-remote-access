@@ -157,6 +157,23 @@ def create_site(
     return _site_read(site)
 
 
+@router.put("/sites/{site_id}")
+def update_site(
+    site_id: str,
+    payload: SiteWrite,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    site = _get_or_404(db, Site, site_id, "Site")
+    _get_or_404(db, Customer, payload.customer_id, "Customer")
+    site.customer_id = payload.customer_id
+    site.name = payload.name
+    site.location = payload.location
+    db.commit()
+    db.refresh(site)
+    return _site_read(site)
+
+
 @router.get("/gateways")
 def list_gateways(
     _user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
@@ -178,6 +195,29 @@ def create_gateway(
     data["lan_routes"] = pack_list(payload.lan_routes)
     gateway = Gateway(**data)
     db.add(gateway)
+    db.commit()
+    db.refresh(gateway)
+    return _gateway_read(gateway)
+
+
+@router.put("/gateways/{gateway_id}")
+def update_gateway(
+    gateway_id: str,
+    payload: GatewayWrite,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    gateway = _get_or_404(db, Gateway, gateway_id, "Gateway")
+    _get_or_404(db, Customer, payload.customer_id, "Customer")
+    _get_or_404(db, Site, payload.site_id, "Site")
+    gateway.customer_id = payload.customer_id
+    gateway.site_id = payload.site_id
+    gateway.name = payload.name
+    gateway.kind = payload.kind
+    gateway.status = payload.status
+    gateway.tailscale_ip = payload.tailscale_ip
+    gateway.lan_routes = pack_list(payload.lan_routes)
+    gateway.last_seen = payload.last_seen
     db.commit()
     db.refresh(gateway)
     return _gateway_read(gateway)
@@ -209,6 +249,30 @@ def create_device(
     data["protocols"] = pack_list(payload.protocols)
     device = IndustrialDevice(**data)
     db.add(device)
+    db.commit()
+    db.refresh(device)
+    return _device_read(device)
+
+
+@router.put("/devices/{device_id}")
+def update_device(
+    device_id: str,
+    payload: IndustrialDeviceWrite,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    device = _get_or_404(db, IndustrialDevice, device_id, "Industrial device")
+    _get_or_404(db, Customer, payload.customer_id, "Customer")
+    _get_or_404(db, Site, payload.site_id, "Site")
+    _get_or_404(db, Gateway, payload.gateway_id, "Gateway")
+    device.customer_id = payload.customer_id
+    device.site_id = payload.site_id
+    device.gateway_id = payload.gateway_id
+    device.name = payload.name
+    device.type = payload.type
+    device.address = payload.address
+    device.protocols = pack_list(payload.protocols)
+    device.status = payload.status
     db.commit()
     db.refresh(device)
     return _device_read(device)

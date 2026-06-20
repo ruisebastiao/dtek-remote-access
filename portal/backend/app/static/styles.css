@@ -319,6 +319,21 @@ tr:last-child td {
   border-color: #7f3434;
 }
 
+.mini {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.mini:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

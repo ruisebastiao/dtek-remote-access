@@ -148,10 +148,11 @@ function renderGateways() {
         <td>${esc(g.tailscale_ip)}</td>
         <td>${chips(g.lan_routes)}</td>
         <td>${esc(g.last_seen)}</td>
+        <td><button class="mini" type="button" data-edit-gateway="${esc(g.id)}">Editar</button></td>
       </tr>`
     )
     .join("");
-  return table(["Gateway", "Estado", "Tailnet IP", "Rotas LAN", "Ultimo heartbeat"], rows);
+  return table(["Gateway", "Estado", "Tailnet IP", "Rotas LAN", "Ultimo heartbeat", ""], rows);
 }
 
 function renderSites() {
@@ -168,6 +169,7 @@ function renderSites() {
         <td><strong>${esc(site.name)}</strong><br /><span class="muted">${esc(site.location)}</span></td>
         <td>${esc(site.customer_name)}</td>
         <td>${esc(site.id)}</td>
+        <td><button class="mini" type="button" data-edit-site="${esc(site.id)}">Editar</button></td>
       </tr>`
     )
     .join("");
@@ -177,7 +179,7 @@ function renderSites() {
       <p class="muted">Os clientes vem do Hub; os sites sao configurados aqui para organizar gateways e equipamentos.</p>
     </section>
     <div style="height: 16px"></div>
-    ${table(["Site", "Cliente", "ID"], rows)}
+    ${table(["Site", "Cliente", "ID", ""], rows)}
   `;
 }
 
@@ -191,10 +193,11 @@ function renderDevices() {
         <td>${chips(d.protocols)}</td>
         <td>${badge(d.status)}</td>
         <td>${esc(d.gateway_id)}</td>
+        <td><button class="mini" type="button" data-edit-device="${esc(d.id)}">Editar</button></td>
       </tr>`
     )
     .join("");
-  return table(["Equipamento", "Endereco", "Protocolos", "Estado", "Gateway"], rows);
+  return table(["Equipamento", "Endereco", "Protocolos", "Estado", "Gateway", ""], rows);
 }
 
 function renderUsers() {
@@ -247,9 +250,11 @@ function gatewayIdFromName(name) {
     .slice(0, 52)}`;
 }
 
-function optionList(items, emptyLabel, labelKey = "name") {
+function optionList(items, emptyLabel, labelKey = "name", selectedId = "") {
   if (!items.length) return `<option value="">${esc(emptyLabel)}</option>`;
-  return items.map((item) => `<option value="${esc(item.id)}">${esc(item[labelKey])}</option>`).join("");
+  return items
+    .map((item) => `<option value="${esc(item.id)}" ${selectedId === item.id ? "selected" : ""}>${esc(item[labelKey])}</option>`)
+    .join("");
 }
 
 function siteIdFromName(customerId, name) {
@@ -263,11 +268,12 @@ function siteIdFromName(customerId, name) {
     .slice(0, 40)}`;
 }
 
-function showSiteDialog() {
+function showSiteDialog(existing = null) {
   if (!state.overview) return;
   const customerOptions = state.overview.customers
-    .map((customer) => `<option value="${esc(customer.id)}">${esc(customer.name)}</option>`)
+    .map((customer) => `<option value="${esc(customer.id)}" ${existing?.customer_id === customer.id ? "selected" : ""}>${esc(customer.name)}</option>`)
     .join("");
+  const isEdit = Boolean(existing);
 
   const dialog = document.createElement("div");
   dialog.className = "modal-backdrop";
@@ -275,8 +281,8 @@ function showSiteDialog() {
     <form class="modal modal--small" id="siteForm">
       <div class="modal__head">
         <div>
-          <h2>Novo site</h2>
-          <p>Cria um site operacional para um cliente vindo do Hub.</p>
+          <h2>${isEdit ? "Editar site" : "Novo site"}</h2>
+          <p>${isEdit ? "Atualiza o site operacional." : "Cria um site operacional para um cliente vindo do Hub."}</p>
         </div>
         <button class="icon-btn" type="button" data-close>&times;</button>
       </div>
@@ -287,17 +293,17 @@ function showSiteDialog() {
         </label>
         <label>
           Nome do site
-          <input id="siteName" required placeholder="Fabrica principal" />
+          <input id="siteName" required placeholder="Fabrica principal" value="${esc(existing?.name || "")}" />
         </label>
         <label>
           Localizacao
-          <input id="siteLocation" placeholder="Linha 1 / Nave A / Cliente" />
+          <input id="siteLocation" placeholder="Linha 1 / Nave A / Cliente" value="${esc(existing?.location || "")}" />
         </label>
       </div>
       <p class="error" id="siteError"></p>
       <div class="modal__actions">
         <button class="ghost" type="button" data-close>Cancelar</button>
-        <button class="primary" type="submit">Criar site</button>
+        <button class="primary" type="submit">${isEdit ? "Guardar site" : "Criar site"}</button>
       </div>
     </form>
   `;
@@ -321,13 +327,16 @@ function showSiteDialog() {
     error.textContent = "";
     const name = nameInput.value.trim();
     const payload = {
-      id: siteIdFromName(customerSelect.value, name),
+      id: existing?.id || siteIdFromName(customerSelect.value, name),
       customer_id: customerSelect.value,
       name,
       location: dialog.querySelector("#siteLocation").value.trim(),
     };
     try {
-      await api("/sites", { method: "POST", body: JSON.stringify(payload) });
+      await api(isEdit ? `/sites/${existing.id}` : "/sites", {
+        method: isEdit ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
       close();
       state.view = "sites";
       await load();
@@ -337,15 +346,17 @@ function showSiteDialog() {
   });
 }
 
-function showGatewayDialog() {
+function showGatewayDialog(existing = null) {
   if (!state.overview) return;
-  const firstCustomer = state.overview.customers[0];
+  const firstCustomer =
+    state.overview.customers.find((customer) => customer.id === existing?.customer_id) || state.overview.customers[0];
   const customerOptions = state.overview.customers
-    .map((customer) => `<option value="${esc(customer.id)}">${esc(customer.name)}</option>`)
+    .map((customer) => `<option value="${esc(customer.id)}" ${existing?.customer_id === customer.id ? "selected" : ""}>${esc(customer.name)}</option>`)
     .join("");
   const siteOptions = (firstCustomer?.sites || [])
-    .map((site) => `<option value="${esc(site.id)}">${esc(site.name)}</option>`)
+    .map((site) => `<option value="${esc(site.id)}" ${existing?.site_id === site.id ? "selected" : ""}>${esc(site.name)}</option>`)
     .join("") || '<option value="">Sem sites criados</option>';
+  const isEdit = Boolean(existing);
 
   const dialog = document.createElement("div");
   dialog.className = "modal-backdrop";
@@ -353,8 +364,8 @@ function showGatewayDialog() {
     <form class="modal" id="gatewayForm">
       <div class="modal__head">
         <div>
-          <h2>Novo gateway</h2>
-          <p>Registo inicial do dispositivo que vai anunciar a rede industrial.</p>
+          <h2>${isEdit ? "Editar gateway" : "Novo gateway"}</h2>
+          <p>${isEdit ? "Atualiza o gateway industrial." : "Registo inicial do dispositivo que vai anunciar a rede industrial."}</p>
         </div>
         <button class="icon-btn" type="button" data-close>&times;</button>
       </div>
@@ -369,25 +380,25 @@ function showGatewayDialog() {
         </label>
         <label>
           Nome
-          <input id="gwName" required placeholder="GW-MAXIPLAS-02" />
+          <input id="gwName" required placeholder="GW-MAXIPLAS-02" value="${esc(existing?.name || "")}" />
         </label>
         <label>
           Tipo
-          <input id="gwKind" placeholder="Raspberry Pi / Debian" />
+          <input id="gwKind" placeholder="Raspberry Pi / Debian" value="${esc(existing?.kind || "")}" />
         </label>
         <label>
           Tailnet IP
-          <input id="gwTailIp" placeholder="100.64.x.x" />
+          <input id="gwTailIp" placeholder="100.64.x.x" value="${esc(existing?.tailscale_ip || "")}" />
         </label>
         <label>
           Rotas LAN
-          <input id="gwRoutes" placeholder="192.168.10.0/24, 192.168.11.0/24" />
+          <input id="gwRoutes" placeholder="192.168.10.0/24, 192.168.11.0/24" value="${esc((existing?.lan_routes || []).join(", "))}" />
         </label>
       </div>
       <p class="error" id="gwError"></p>
       <div class="modal__actions">
         <button class="ghost" type="button" data-close>Cancelar</button>
-        <button class="primary" type="submit">Criar gateway</button>
+        <button class="primary" type="submit">${isEdit ? "Guardar gateway" : "Criar gateway"}</button>
       </div>
     </form>
   `;
@@ -431,18 +442,21 @@ function showGatewayDialog() {
       .map((item) => item.trim())
       .filter(Boolean);
     const payload = {
-      id: gatewayIdFromName(name),
+      id: existing?.id || gatewayIdFromName(name),
       customer_id: customerSelect.value,
       site_id: siteSelect.value,
       name,
       kind: dialog.querySelector("#gwKind").value.trim(),
-      status: "offline",
+      status: existing?.status || "offline",
       tailscale_ip: dialog.querySelector("#gwTailIp").value.trim(),
       lan_routes: routes,
       last_seen: "",
     };
     try {
-      await api("/gateways", { method: "POST", body: JSON.stringify(payload) });
+      await api(isEdit ? `/gateways/${existing.id}` : "/gateways", {
+        method: isEdit ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
       close();
       state.view = "gateways";
       await load();
@@ -452,14 +466,17 @@ function showGatewayDialog() {
   });
 }
 
-function showDeviceDialog() {
+function showDeviceDialog(existing = null) {
   if (!state.overview) return;
-  const firstCustomer = state.overview.customers[0];
+  const firstCustomer =
+    state.overview.customers.find((customer) => customer.id === existing?.customer_id) || state.overview.customers[0];
   const firstSites = firstCustomer ? sitesForCustomer(firstCustomer.id) : [];
-  const firstGateways = firstSites[0] ? gatewaysForSite(firstSites[0].id) : [];
+  const selectedSite = firstSites.find((site) => site.id === existing?.site_id) || firstSites[0];
+  const firstGateways = selectedSite ? gatewaysForSite(selectedSite.id) : [];
   const customerOptions = state.overview.customers
-    .map((customer) => `<option value="${esc(customer.id)}">${esc(customer.name)}</option>`)
+    .map((customer) => `<option value="${esc(customer.id)}" ${existing?.customer_id === customer.id ? "selected" : ""}>${esc(customer.name)}</option>`)
     .join("");
+  const isEdit = Boolean(existing);
 
   const dialog = document.createElement("div");
   dialog.className = "modal-backdrop";
@@ -467,8 +484,8 @@ function showDeviceDialog() {
     <form class="modal" id="deviceForm">
       <div class="modal__head">
         <div>
-          <h2>Novo equipamento</h2>
-          <p>Associa um HMI, PLC, robot, IPC ou outro alvo industrial a um gateway.</p>
+          <h2>${isEdit ? "Editar equipamento" : "Novo equipamento"}</h2>
+          <p>${isEdit ? "Atualiza o alvo industrial." : "Associa um HMI, PLC, robot, IPC ou outro alvo industrial a um gateway."}</p>
         </div>
         <button class="icon-btn" type="button" data-close>&times;</button>
       </div>
@@ -479,42 +496,37 @@ function showDeviceDialog() {
         </label>
         <label>
           Site
-          <select id="devSite" required ${firstSites.length ? "" : "disabled"}>${optionList(firstSites, "Sem sites criados")}</select>
+          <select id="devSite" required ${firstSites.length ? "" : "disabled"}>${optionList(firstSites, "Sem sites criados", "name", existing?.site_id)}</select>
         </label>
         <label>
           Gateway
-          <select id="devGateway" required ${firstGateways.length ? "" : "disabled"}>${optionList(firstGateways, "Sem gateways criados")}</select>
+          <select id="devGateway" required ${firstGateways.length ? "" : "disabled"}>${optionList(firstGateways, "Sem gateways criados", "name", existing?.gateway_id)}</select>
         </label>
         <label>
           Tipo
           <select id="devType">
-            <option value="HMI">HMI</option>
-            <option value="PLC">PLC</option>
-            <option value="Robot">Robot</option>
-            <option value="IPC">IPC</option>
-            <option value="Camera">Camera</option>
-            <option value="Other">Other</option>
+            ${["HMI", "PLC", "Robot", "IPC", "Camera", "Other"].map((type) => `<option value="${type}" ${existing?.type === type ? "selected" : ""}>${type}</option>`).join("")}
           </select>
         </label>
         <label>
           Nome
-          <input id="devName" required placeholder="MAXIPLAS_LONG_SIDE" />
+          <input id="devName" required placeholder="MAXIPLAS_LONG_SIDE" value="${esc(existing?.name || "")}" />
         </label>
         <label>
           Endereco
-          <input id="devAddress" required placeholder="192.168.10.21" />
+          <input id="devAddress" required placeholder="192.168.10.21" value="${esc(existing?.address || "")}" />
         </label>
         <label class="form-grid__wide">
           Protocolos
           <div class="check-row">
-            ${["http", "https", "rdp", "vnc", "ssh"].map((p) => `<label><input type="checkbox" class="devProtocol" value="${p}" /> ${p.toUpperCase()}</label>`).join("")}
+            ${["http", "https", "rdp", "vnc", "ssh"].map((p) => `<label><input type="checkbox" class="devProtocol" value="${p}" ${(existing?.protocols || []).includes(p) ? "checked" : ""} /> ${p.toUpperCase()}</label>`).join("")}
           </div>
         </label>
       </div>
       <p class="error" id="devError"></p>
       <div class="modal__actions">
         <button class="ghost" type="button" data-close>Cancelar</button>
-        <button class="primary" type="submit">Criar equipamento</button>
+        <button class="primary" type="submit">${isEdit ? "Guardar equipamento" : "Criar equipamento"}</button>
       </div>
     </form>
   `;
@@ -533,13 +545,13 @@ function showDeviceDialog() {
   function syncGateways() {
     const gateways = gatewaysForSite(siteSelect.value);
     gatewaySelect.disabled = gateways.length === 0;
-    gatewaySelect.innerHTML = optionList(gateways, "Sem gateways criados");
+    gatewaySelect.innerHTML = optionList(gateways, "Sem gateways criados", "name", existing?.gateway_id);
   }
 
   function syncSitesAndGateways() {
     const sites = sitesForCustomer(customerSelect.value);
     siteSelect.disabled = sites.length === 0;
-    siteSelect.innerHTML = optionList(sites, "Sem sites criados");
+    siteSelect.innerHTML = optionList(sites, "Sem sites criados", "name", existing?.site_id);
     syncGateways();
   }
 
@@ -565,7 +577,7 @@ function showDeviceDialog() {
     const name = nameInput.value.trim();
     const protocols = [...dialog.querySelectorAll(".devProtocol:checked")].map((item) => item.value);
     const payload = {
-      id: deviceIdFromName(name),
+      id: existing?.id || deviceIdFromName(name),
       customer_id: customerSelect.value,
       site_id: siteSelect.value,
       gateway_id: gatewaySelect.value,
@@ -573,10 +585,13 @@ function showDeviceDialog() {
       type: dialog.querySelector("#devType").value,
       address: dialog.querySelector("#devAddress").value.trim(),
       protocols,
-      status: "unknown",
+      status: existing?.status || "unknown",
     };
     try {
-      await api("/devices", { method: "POST", body: JSON.stringify(payload) });
+      await api(isEdit ? `/devices/${existing.id}` : "/devices", {
+        method: isEdit ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
       close();
       state.view = "devices";
       await load();
@@ -610,6 +625,29 @@ function render() {
   else if (state.view === "devices") app.innerHTML = renderDevices();
   else if (state.view === "users") app.innerHTML = renderUsers();
   else app.innerHTML = renderOverview();
+  wireEditButtons();
+}
+
+function wireEditButtons() {
+  document.querySelectorAll("[data-edit-site]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const siteId = button.dataset.editSite;
+      const site = state.overview.customers.flatMap((customer) => customer.sites).find((item) => item.id === siteId);
+      if (site) showSiteDialog(site);
+    });
+  });
+  document.querySelectorAll("[data-edit-gateway]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const gateway = state.overview.gateways.find((item) => item.id === button.dataset.editGateway);
+      if (gateway) showGatewayDialog(gateway);
+    });
+  });
+  document.querySelectorAll("[data-edit-device]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const device = state.overview.devices.find((item) => item.id === button.dataset.editDevice);
+      if (device) showDeviceDialog(device);
+    });
+  });
 }
 
 async function load() {

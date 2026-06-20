@@ -23,3 +23,5 @@ WORKLOG
   Remote Access sites before gateways are assigned.
 - Add a "Novo equipamento" modal with customer/site/gateway cascade and
   protocol selection, creating industrial devices through the API.
+- Add update endpoints and edit buttons/modals for sites, gateways and
+  industrial devices.
