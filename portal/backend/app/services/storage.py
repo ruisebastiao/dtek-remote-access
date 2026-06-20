@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from typing import Iterable
 
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
@@ -35,6 +36,23 @@ def unpack_list(raw: str | None) -> list[str]:
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    run_patches()
+
+
+def run_patches() -> None:
+    insp = inspect(engine)
+    for table in ("sites", "gateways", "industrial_devices"):
+        if not insp.has_table(table):
+            continue
+        columns = {column["name"] for column in insp.get_columns(table)}
+        if "lifecycle_status" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} "
+                        "ADD COLUMN lifecycle_status VARCHAR(40) DEFAULT 'active'"
+                    )
+                )
 
 
 def seed_db(db: Session) -> None:
@@ -154,4 +172,3 @@ def seed_db(db: Session) -> None:
     ]
     db.add_all(grants)
     db.commit()
-

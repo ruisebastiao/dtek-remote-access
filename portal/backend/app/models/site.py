@@ -17,6 +17,7 @@ class Site(Base):
     )
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     location: Mapped[str] = mapped_column(String(250), default="")
+    lifecycle_status: Mapped[str] = mapped_column(String(40), default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -26,4 +27,3 @@ class Site(Base):
     gateways: Mapped[list["Gateway"]] = relationship(  # noqa: F821
         back_populates="site", cascade="all, delete-orphan"
     )
-

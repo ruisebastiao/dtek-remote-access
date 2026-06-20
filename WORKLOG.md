@@ -25,3 +25,5 @@ WORKLOG
   protocol selection, creating industrial devices through the API.
 - Add update endpoints and edit buttons/modals for sites, gateways and
   industrial devices.
+- Add lifecycle archive/restore support for sites, gateways and devices, with a
+  UI toggle to show archived inventory.

@@ -19,6 +19,7 @@ class Gateway(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     kind: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(40), default="offline", index=True)
+    lifecycle_status: Mapped[str] = mapped_column(String(40), default="active", index=True)
     tailscale_ip: Mapped[str] = mapped_column(String(80), default="")
     lan_routes: Mapped[str] = mapped_column(Text, default="[]")
     last_seen: Mapped[str] = mapped_column(String(80), default="")
@@ -31,4 +32,3 @@ class Gateway(Base):
     devices: Mapped[list["IndustrialDevice"]] = relationship(  # noqa: F821
         back_populates="gateway", cascade="all, delete-orphan"
     )
-

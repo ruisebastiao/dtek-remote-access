@@ -3,6 +3,7 @@ const state = {
   me: null,
   overview: null,
   users: [],
+  showArchived: false,
 };
 
 const titles = {
@@ -71,12 +72,15 @@ function setTitle() {
   document.getElementById("pageTitle").textContent = title;
   document.getElementById("pageSubtitle").textContent = subtitle;
   const primary = document.getElementById("primaryActionBtn");
+  const archiveToggle = document.getElementById("archiveToggleBtn");
   primary.textContent =
     state.view === "sites"
       ? "Novo site"
       : state.view === "devices"
         ? "Novo equipamento"
         : "Novo gateway";
+  archiveToggle.textContent = state.showArchived ? "Ocultar arquivados" : "Mostrar arquivados";
+  archiveToggle.hidden = !["sites", "gateways", "devices"].includes(state.view);
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === state.view);
   });
@@ -148,11 +152,15 @@ function renderGateways() {
         <td>${esc(g.tailscale_ip)}</td>
         <td>${chips(g.lan_routes)}</td>
         <td>${esc(g.last_seen)}</td>
-        <td><button class="mini" type="button" data-edit-gateway="${esc(g.id)}">Editar</button></td>
+        <td>${badge(g.lifecycle_status)}</td>
+        <td class="row-actions">
+          <button class="mini" type="button" data-edit-gateway="${esc(g.id)}">Editar</button>
+          <button class="mini" type="button" data-toggle-gateway="${esc(g.id)}" data-next="${g.lifecycle_status === "archived" ? "restore" : "archive"}">${g.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+        </td>
       </tr>`
     )
     .join("");
-  return table(["Gateway", "Estado", "Tailnet IP", "Rotas LAN", "Ultimo heartbeat", ""], rows);
+  return table(["Gateway", "Estado", "Tailnet IP", "Rotas LAN", "Ultimo heartbeat", "Ciclo", ""], rows);
 }
 
 function renderSites() {
@@ -169,7 +177,11 @@ function renderSites() {
         <td><strong>${esc(site.name)}</strong><br /><span class="muted">${esc(site.location)}</span></td>
         <td>${esc(site.customer_name)}</td>
         <td>${esc(site.id)}</td>
-        <td><button class="mini" type="button" data-edit-site="${esc(site.id)}">Editar</button></td>
+        <td>${badge(site.lifecycle_status)}</td>
+        <td class="row-actions">
+          <button class="mini" type="button" data-edit-site="${esc(site.id)}">Editar</button>
+          <button class="mini" type="button" data-toggle-site="${esc(site.id)}" data-next="${site.lifecycle_status === "archived" ? "restore" : "archive"}">${site.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+        </td>
       </tr>`
     )
     .join("");
@@ -179,7 +191,7 @@ function renderSites() {
       <p class="muted">Os clientes vem do Hub; os sites sao configurados aqui para organizar gateways e equipamentos.</p>
     </section>
     <div style="height: 16px"></div>
-    ${table(["Site", "Cliente", "ID", ""], rows)}
+    ${table(["Site", "Cliente", "ID", "Ciclo", ""], rows)}
   `;
 }
 
@@ -193,11 +205,15 @@ function renderDevices() {
         <td>${chips(d.protocols)}</td>
         <td>${badge(d.status)}</td>
         <td>${esc(d.gateway_id)}</td>
-        <td><button class="mini" type="button" data-edit-device="${esc(d.id)}">Editar</button></td>
+        <td>${badge(d.lifecycle_status)}</td>
+        <td class="row-actions">
+          <button class="mini" type="button" data-edit-device="${esc(d.id)}">Editar</button>
+          <button class="mini" type="button" data-toggle-device="${esc(d.id)}" data-next="${d.lifecycle_status === "archived" ? "restore" : "archive"}">${d.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+        </td>
       </tr>`
     )
     .join("");
-  return table(["Equipamento", "Endereco", "Protocolos", "Estado", "Gateway", ""], rows);
+  return table(["Equipamento", "Endereco", "Protocolos", "Estado", "Gateway", "Ciclo", ""], rows);
 }
 
 function renderUsers() {
@@ -648,6 +664,20 @@ function wireEditButtons() {
       if (device) showDeviceDialog(device);
     });
   });
+  document.querySelectorAll("[data-toggle-site]").forEach((button) => {
+    button.addEventListener("click", () => toggleLifecycle("sites", button.dataset.toggleSite, button.dataset.next));
+  });
+  document.querySelectorAll("[data-toggle-gateway]").forEach((button) => {
+    button.addEventListener("click", () => toggleLifecycle("gateways", button.dataset.toggleGateway, button.dataset.next));
+  });
+  document.querySelectorAll("[data-toggle-device]").forEach((button) => {
+    button.addEventListener("click", () => toggleLifecycle("devices", button.dataset.toggleDevice, button.dataset.next));
+  });
+}
+
+async function toggleLifecycle(resource, id, action) {
+  await api(`/${resource}/${id}/${action}`, { method: "POST" });
+  await load();
 }
 
 async function load() {
@@ -656,7 +686,7 @@ async function load() {
     app.innerHTML = '<div class="loading">A carregar...</div>';
     const [me, overview, usersResponse] = await Promise.all([
       api("/me"),
-      api("/overview"),
+      api(`/overview${state.showArchived ? "?include_archived=true" : ""}`),
       api("/users").catch(() => ({ users: [] })),
     ]);
     state.me = me;
@@ -676,6 +706,10 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 });
 
 document.getElementById("refreshBtn").addEventListener("click", load);
+document.getElementById("archiveToggleBtn").addEventListener("click", async () => {
+  state.showArchived = !state.showArchived;
+  await load();
+});
 document.getElementById("primaryActionBtn").addEventListener("click", () => {
   if (state.view === "sites") showSiteDialog();
   else if (state.view === "devices") showDeviceDialog();

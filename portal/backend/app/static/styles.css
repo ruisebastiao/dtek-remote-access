@@ -334,6 +334,12 @@ tr:last-child td {
   color: var(--accent);
 }
 
+.row-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

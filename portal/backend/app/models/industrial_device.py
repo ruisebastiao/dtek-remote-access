@@ -24,10 +24,10 @@ class IndustrialDevice(Base):
     address: Mapped[str] = mapped_column(String(120), default="")
     protocols: Mapped[str] = mapped_column(Text, default="[]")
     status: Mapped[str] = mapped_column(String(40), default="unknown", index=True)
+    lifecycle_status: Mapped[str] = mapped_column(String(40), default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     gateway: Mapped["Gateway"] = relationship(back_populates="devices")  # noqa: F821
-

@@ -39,15 +39,20 @@ def me(user: TokenUser = Depends(get_current_user)) -> dict:
 
 @router.get("/overview")
 def overview(
-    user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
+    include_archived: bool = False,
+    user: TokenUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> dict:
-    customers = _customer_list_for_user(db, user)
+    customers = _customer_list_for_user(db, user, include_archived=include_archived)
     customer_ids = {customer["id"] for customer in customers}
     gateways_query = db.query(Gateway).order_by(Gateway.name.asc())
     devices_query = db.query(IndustrialDevice).order_by(IndustrialDevice.name.asc())
     if customer_ids:
         gateways_query = gateways_query.filter(Gateway.customer_id.in_(customer_ids))
         devices_query = devices_query.filter(IndustrialDevice.customer_id.in_(customer_ids))
+    if not include_archived:
+        gateways_query = gateways_query.filter(Gateway.lifecycle_status == "active")
+        devices_query = devices_query.filter(IndustrialDevice.lifecycle_status == "active")
     gateways = [_gateway_read(g) for g in gateways_query.all()]
     devices = [
         _device_read(d) for d in devices_query.all()
@@ -137,8 +142,15 @@ def delete_customer(
 
 
 @router.get("/sites")
-def list_sites(_user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    return {"sites": [_site_read(s) for s in db.query(Site).order_by(Site.name.asc()).all()]}
+def list_sites(
+    include_archived: bool = False,
+    _user: TokenUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    query = db.query(Site).order_by(Site.name.asc())
+    if not include_archived:
+        query = query.filter(Site.lifecycle_status == "active")
+    return {"sites": [_site_read(s) for s in query.all()]}
 
 
 @router.post("/sites", status_code=201)
@@ -174,11 +186,42 @@ def update_site(
     return _site_read(site)
 
 
+@router.post("/sites/{site_id}/archive")
+def archive_site(
+    site_id: str,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    site = _set_lifecycle(db, Site, site_id, "Site", "archived")
+    for gateway in db.query(Gateway).filter(Gateway.site_id == site_id).all():
+        gateway.lifecycle_status = "archived"
+    for device in db.query(IndustrialDevice).filter(IndustrialDevice.site_id == site_id).all():
+        device.lifecycle_status = "archived"
+    db.commit()
+    db.refresh(site)
+    return _site_read(site)
+
+
+@router.post("/sites/{site_id}/restore")
+def restore_site(
+    site_id: str,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    site = _set_lifecycle(db, Site, site_id, "Site", "active")
+    return _site_read(site)
+
+
 @router.get("/gateways")
 def list_gateways(
-    _user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
+    include_archived: bool = False,
+    _user: TokenUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> dict:
-    return {"gateways": [_gateway_read(g) for g in db.query(Gateway).order_by(Gateway.name.asc()).all()]}
+    query = db.query(Gateway).order_by(Gateway.name.asc())
+    if not include_archived:
+        query = query.filter(Gateway.lifecycle_status == "active")
+    return {"gateways": [_gateway_read(g) for g in query.all()]}
 
 
 @router.post("/gateways", status_code=201)
@@ -223,13 +266,42 @@ def update_gateway(
     return _gateway_read(gateway)
 
 
+@router.post("/gateways/{gateway_id}/archive")
+def archive_gateway(
+    gateway_id: str,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    gateway = _set_lifecycle(db, Gateway, gateway_id, "Gateway", "archived")
+    for device in db.query(IndustrialDevice).filter(IndustrialDevice.gateway_id == gateway_id).all():
+        device.lifecycle_status = "archived"
+    db.commit()
+    db.refresh(gateway)
+    return _gateway_read(gateway)
+
+
+@router.post("/gateways/{gateway_id}/restore")
+def restore_gateway(
+    gateway_id: str,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    gateway = _set_lifecycle(db, Gateway, gateway_id, "Gateway", "active")
+    return _gateway_read(gateway)
+
+
 @router.get("/devices")
 def list_devices(
-    _user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
+    include_archived: bool = False,
+    _user: TokenUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> dict:
+    query = db.query(IndustrialDevice).order_by(IndustrialDevice.name.asc())
+    if not include_archived:
+        query = query.filter(IndustrialDevice.lifecycle_status == "active")
     return {
         "devices": [
-            _device_read(d) for d in db.query(IndustrialDevice).order_by(IndustrialDevice.name.asc()).all()
+            _device_read(d) for d in query.all()
         ]
     }
 
@@ -278,6 +350,26 @@ def update_device(
     return _device_read(device)
 
 
+@router.post("/devices/{device_id}/archive")
+def archive_device(
+    device_id: str,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    device = _set_lifecycle(db, IndustrialDevice, device_id, "Industrial device", "archived")
+    return _device_read(device)
+
+
+@router.post("/devices/{device_id}/restore")
+def restore_device(
+    device_id: str,
+    _user: TokenUser = Depends(require_remote_roles("admin", "root")),
+    db: Session = Depends(get_db),
+) -> dict:
+    device = _set_lifecycle(db, IndustrialDevice, device_id, "Industrial device", "active")
+    return _device_read(device)
+
+
 def _get_or_404(db: Session, model, item_id: str, label: str):
     item = db.get(model, item_id)
     if not item:
@@ -285,17 +377,30 @@ def _get_or_404(db: Session, model, item_id: str, label: str):
     return item
 
 
-def _customer_read(customer: Customer) -> dict:
+def _set_lifecycle(db: Session, model, item_id: str, label: str, status: str):
+    item = _get_or_404(db, model, item_id, label)
+    item.lifecycle_status = status
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def _customer_read(customer: Customer, include_archived: bool = False) -> dict:
+    sites = sorted(customer.sites, key=lambda item: item.name)
+    if not include_archived:
+        sites = [site for site in sites if site.lifecycle_status == "active"]
     return {
         "id": customer.id,
         "name": customer.name,
         "notes": customer.notes,
         "source": "hub" if customer.id.startswith("hub_client_") else "local",
-        "sites": [_site_read(s) for s in sorted(customer.sites, key=lambda item: item.name)],
+        "sites": [_site_read(s) for s in sites],
     }
 
 
-def _customer_list_for_user(db: Session, user: TokenUser) -> list[dict]:
+def _customer_list_for_user(
+    db: Session, user: TokenUser, include_archived: bool = False
+) -> list[dict]:
     hub_clients = fetch_hub_clients(user.token)
     if hub_clients:
         sync_hub_clients(db, hub_clients)
@@ -306,8 +411,11 @@ def _customer_list_for_user(db: Session, user: TokenUser) -> list[dict]:
             .order_by(Customer.name.asc())
             .all()
         )
-        return [_customer_read(c) for c in rows]
-    return [_customer_read(c) for c in db.query(Customer).order_by(Customer.name.asc()).all()]
+        return [_customer_read(c, include_archived=include_archived) for c in rows]
+    return [
+        _customer_read(c, include_archived=include_archived)
+        for c in db.query(Customer).order_by(Customer.name.asc()).all()
+    ]
 
 
 def _site_read(site: Site) -> dict:
@@ -316,6 +424,7 @@ def _site_read(site: Site) -> dict:
         "customer_id": site.customer_id,
         "name": site.name,
         "location": site.location,
+        "lifecycle_status": site.lifecycle_status,
     }
 
 
@@ -327,6 +436,7 @@ def _gateway_read(gateway: Gateway) -> dict:
         "name": gateway.name,
         "kind": gateway.kind,
         "status": gateway.status,
+        "lifecycle_status": gateway.lifecycle_status,
         "tailscale_ip": gateway.tailscale_ip,
         "lan_routes": unpack_list(gateway.lan_routes),
         "last_seen": gateway.last_seen,
@@ -344,6 +454,7 @@ def _device_read(device: IndustrialDevice) -> dict:
         "address": device.address,
         "protocols": unpack_list(device.protocols),
         "status": device.status,
+        "lifecycle_status": device.lifecycle_status,
     }
 
 
