@@ -207,7 +207,7 @@ function showGatewayDialog() {
     .join("");
   const siteOptions = (firstCustomer?.sites || [])
     .map((site) => `<option value="${esc(site.id)}">${esc(site.name)}</option>`)
-    .join("");
+    .join("") || '<option value="">Sem sites criados</option>';
 
   const dialog = document.createElement("div");
   dialog.className = "modal-backdrop";
@@ -227,7 +227,7 @@ function showGatewayDialog() {
         </label>
         <label>
           Site
-          <select id="gwSite" required>${siteOptions}</select>
+          <select id="gwSite" required ${siteOptions.includes("Sem sites") ? "disabled" : ""}>${siteOptions}</select>
         </label>
         <label>
           Nome
@@ -266,9 +266,10 @@ function showGatewayDialog() {
 
   function syncSites() {
     const sites = sitesForCustomer(customerSelect.value);
-    siteSelect.innerHTML = sites
-      .map((site) => `<option value="${esc(site.id)}">${esc(site.name)}</option>`)
-      .join("");
+    siteSelect.disabled = sites.length === 0;
+    siteSelect.innerHTML = sites.length
+      ? sites.map((site) => `<option value="${esc(site.id)}">${esc(site.name)}</option>`).join("")
+      : '<option value="">Sem sites criados</option>';
   }
 
   dialog.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", close));
@@ -281,6 +282,10 @@ function showGatewayDialog() {
   dialog.querySelector("#gatewayForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     error.textContent = "";
+    if (!siteSelect.value) {
+      error.textContent = "Este cliente ainda nao tem sites no Remote Access. Cria primeiro um site.";
+      return;
+    }
     const name = nameInput.value.trim();
     const routes = dialog
       .querySelector("#gwRoutes")

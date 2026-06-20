@@ -53,6 +53,7 @@ cd C:\Users\rui\Documents\projetos\dtek-remote-access\portal\backend
 $env:DEV_AUTH="true"
 $env:JWT_SECRET="dev-secret"
 $env:COOKIE_NAME="dtek_sso"
+$env:HUB_URL="http://127.0.0.1:8000"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8003
 ```
 
@@ -78,6 +79,8 @@ Em producao:
 - SQLite dev persistente em `remote_access_dev.db`.
 - CRUD inicial para customers, sites, gateways e devices.
 - Integracao local com o launcher do Hub validada.
+- Clientes vindos do Hub quando existe token real; o Remote Access guarda apenas
+  a sombra local necessaria para associar sites/gateways/equipamentos.
 
 ## Limites Atuais
 
@@ -86,7 +89,8 @@ Em producao:
 
 ## Proximos Passos
 
-1. Evoluir o CRUD inicial para UI editavel.
-2. Preparar compose/Postgres para deploy.
-3. Criar adapter Headscale: listar nodes, criar preauth key, aprovar rotas.
-4. Criar wizard de enrolment do gateway.
+1. Criar UI para sites de cliente.
+2. Evoluir o restante CRUD inicial para UI editavel.
+3. Preparar compose/Postgres para deploy.
+4. Criar adapter Headscale: listar nodes, criar preauth key, aprovar rotas.
+5. Criar wizard de enrolment do gateway.

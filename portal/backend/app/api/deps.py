@@ -8,7 +8,8 @@ from app.services.auth import decode_token, dev_user_payload
 
 
 class TokenUser:
-    def __init__(self, payload: dict) -> None:
+    def __init__(self, payload: dict, token: str = "") -> None:
+        self.token = token
         self.id = str(payload.get("sub", ""))
         self.name = payload.get("name", "")
         self.email = payload.get("email", "")
@@ -43,7 +44,7 @@ def _extract_token(request: Request) -> str:
 def get_current_user(request: Request) -> TokenUser:
     token = _extract_token(request)
     if token:
-        user = TokenUser(decode_token(token))
+        user = TokenUser(decode_token(token), token=token)
     elif settings.dev_auth:
         user = TokenUser(dev_user_payload())
     else:
@@ -66,4 +67,3 @@ def require_remote_roles(*roles: str):
         return user
 
     return _checker
-

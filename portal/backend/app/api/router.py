@@ -12,6 +12,7 @@ from app.models.industrial_device import IndustrialDevice
 from app.models.site import Site
 from app.schemas import CustomerWrite, GatewayWrite, IndustrialDeviceWrite, SiteWrite
 from app.services import mock_data
+from app.services.hub import fetch_hub_clients, sync_hub_clients
 from app.services.storage import pack_list, unpack_list, utc_now
 
 router = APIRouter()
@@ -38,18 +39,24 @@ def me(user: TokenUser = Depends(get_current_user)) -> dict:
 
 @router.get("/overview")
 def overview(
-    _user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
+    user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> dict:
-    customers = [_customer_read(c) for c in db.query(Customer).order_by(Customer.name.asc()).all()]
-    gateways = [_gateway_read(g) for g in db.query(Gateway).order_by(Gateway.name.asc()).all()]
+    customers = _customer_list_for_user(db, user)
+    customer_ids = {customer["id"] for customer in customers}
+    gateways_query = db.query(Gateway).order_by(Gateway.name.asc())
+    devices_query = db.query(IndustrialDevice).order_by(IndustrialDevice.name.asc())
+    if customer_ids:
+        gateways_query = gateways_query.filter(Gateway.customer_id.in_(customer_ids))
+        devices_query = devices_query.filter(IndustrialDevice.customer_id.in_(customer_ids))
+    gateways = [_gateway_read(g) for g in gateways_query.all()]
     devices = [
-        _device_read(d) for d in db.query(IndustrialDevice).order_by(IndustrialDevice.name.asc()).all()
+        _device_read(d) for d in devices_query.all()
     ]
     online_gateways = [g for g in gateways if g["status"] == "online"]
     return {
         "stats": {
             "customers": len(customers),
-            "sites": db.query(Site).count(),
+            "sites": sum(len(customer["sites"]) for customer in customers),
             "gateways": len(gateways),
             "gateways_online": len(online_gateways),
             "devices": len(devices),
@@ -83,9 +90,9 @@ def access_grants(
 
 @router.get("/customers")
 def list_customers(
-    _user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
+    user: TokenUser = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> dict:
-    return {"customers": [_customer_read(c) for c in db.query(Customer).order_by(Customer.name.asc()).all()]}
+    return {"customers": _customer_list_for_user(db, user)}
 
 
 @router.post("/customers", status_code=201)
@@ -219,8 +226,24 @@ def _customer_read(customer: Customer) -> dict:
         "id": customer.id,
         "name": customer.name,
         "notes": customer.notes,
+        "source": "hub" if customer.id.startswith("hub_client_") else "local",
         "sites": [_site_read(s) for s in sorted(customer.sites, key=lambda item: item.name)],
     }
+
+
+def _customer_list_for_user(db: Session, user: TokenUser) -> list[dict]:
+    hub_clients = fetch_hub_clients(user.token)
+    if hub_clients:
+        sync_hub_clients(db, hub_clients)
+        hub_ids = {client["id"] for client in hub_clients}
+        rows = (
+            db.query(Customer)
+            .filter(Customer.id.in_(hub_ids))
+            .order_by(Customer.name.asc())
+            .all()
+        )
+        return [_customer_read(c) for c in rows]
+    return [_customer_read(c) for c in db.query(Customer).order_by(Customer.name.asc()).all()]
 
 
 def _site_read(site: Site) -> dict:

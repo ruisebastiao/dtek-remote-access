@@ -17,3 +17,5 @@ WORKLOG
   initial CRUD/read endpoints for customers, sites, gateways, devices and grants.
 - Replace the "Novo gateway" placeholder with a real modal form that creates
   gateways through the API and refreshes the UI.
+- Use `dtek-webhub` as the client source when a real Hub JWT is available,
+  syncing only local customer shadows for Remote Access operational data.
