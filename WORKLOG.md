@@ -12,3 +12,4 @@ WORKLOG
 - Document local development flow on port 8003.
 - Align Remote Access UI colors and controls with the existing Hub/Helpdesk
   dark theme.
+- Document integrated local SSO test with `dtek-webhub` and shared JWT secret.

@@ -29,6 +29,43 @@ Em dev:
 - nao exige cookie do Hub
 - injeta um utilizador root ficticio
 
+## Teste Integrado com o Hub Local
+
+Para validar o cookie/JWT real do Hub em dev, os dois servicos devem partilhar o
+mesmo `JWT_SECRET`.
+
+Hub local:
+
+```powershell
+cd C:\Users\rui\Documents\projetos\dtek-webhub\portal\backend
+$env:DATABASE_URL="sqlite:///./hub_dev.db"
+$env:JWT_SECRET="dev-secret"
+$env:COOKIE_SECURE="false"
+$env:COOKIE_DOMAIN=""
+$env:REMOTE_ACCESS_URL="http://127.0.0.1:8003"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Remote Access local:
+
+```powershell
+cd C:\Users\rui\Documents\projetos\dtek-remote-access\portal\backend
+$env:DEV_AUTH="true"
+$env:JWT_SECRET="dev-secret"
+$env:COOKIE_NAME="dtek_sso"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8003
+```
+
+Abrir o Hub:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Depois de login no Hub, o tile `Remote Access` abre `http://127.0.0.1:8003/`.
+Como ambos usam o host `127.0.0.1`, o cookie `dtek_sso` tambem e enviado para o
+Remote Access.
+
 Em producao:
 
 - `DEV_AUTH=false`
@@ -51,4 +88,3 @@ Em producao:
 3. Trocar seed data por API CRUD.
 4. Criar adapter Headscale: listar nodes, criar preauth key, aprovar rotas.
 5. Criar wizard de enrolment do gateway.
-
