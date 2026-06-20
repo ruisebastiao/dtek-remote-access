@@ -19,8 +19,13 @@ const esc = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
-async function api(path) {
-  const res = await fetch(`/api${path}`, { credentials: "include" });
+async function api(path, options = {}) {
+  const res = await fetch(`/api${path}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  if (res.status === 204) return null;
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.message || `HTTP ${res.status}`);
@@ -180,6 +185,130 @@ function renderUsers() {
   `;
 }
 
+function sitesForCustomer(customerId) {
+  const customer = state.overview.customers.find((item) => item.id === customerId);
+  return customer ? customer.sites : [];
+}
+
+function gatewayIdFromName(name) {
+  return `gw_${String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 52)}`;
+}
+
+function showGatewayDialog() {
+  if (!state.overview) return;
+  const firstCustomer = state.overview.customers[0];
+  const customerOptions = state.overview.customers
+    .map((customer) => `<option value="${esc(customer.id)}">${esc(customer.name)}</option>`)
+    .join("");
+  const siteOptions = (firstCustomer?.sites || [])
+    .map((site) => `<option value="${esc(site.id)}">${esc(site.name)}</option>`)
+    .join("");
+
+  const dialog = document.createElement("div");
+  dialog.className = "modal-backdrop";
+  dialog.innerHTML = `
+    <form class="modal" id="gatewayForm">
+      <div class="modal__head">
+        <div>
+          <h2>Novo gateway</h2>
+          <p>Registo inicial do dispositivo que vai anunciar a rede industrial.</p>
+        </div>
+        <button class="icon-btn" type="button" data-close>&times;</button>
+      </div>
+      <div class="form-grid">
+        <label>
+          Cliente
+          <select id="gwCustomer" required>${customerOptions}</select>
+        </label>
+        <label>
+          Site
+          <select id="gwSite" required>${siteOptions}</select>
+        </label>
+        <label>
+          Nome
+          <input id="gwName" required placeholder="GW-MAXIPLAS-02" />
+        </label>
+        <label>
+          Tipo
+          <input id="gwKind" placeholder="Raspberry Pi / Debian" />
+        </label>
+        <label>
+          Tailnet IP
+          <input id="gwTailIp" placeholder="100.64.x.x" />
+        </label>
+        <label>
+          Rotas LAN
+          <input id="gwRoutes" placeholder="192.168.10.0/24, 192.168.11.0/24" />
+        </label>
+      </div>
+      <p class="error" id="gwError"></p>
+      <div class="modal__actions">
+        <button class="ghost" type="button" data-close>Cancelar</button>
+        <button class="primary" type="submit">Criar gateway</button>
+      </div>
+    </form>
+  `;
+
+  document.body.appendChild(dialog);
+  const customerSelect = dialog.querySelector("#gwCustomer");
+  const siteSelect = dialog.querySelector("#gwSite");
+  const nameInput = dialog.querySelector("#gwName");
+  const error = dialog.querySelector("#gwError");
+
+  function close() {
+    dialog.remove();
+  }
+
+  function syncSites() {
+    const sites = sitesForCustomer(customerSelect.value);
+    siteSelect.innerHTML = sites
+      .map((site) => `<option value="${esc(site.id)}">${esc(site.name)}</option>`)
+      .join("");
+  }
+
+  dialog.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", close));
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) close();
+  });
+  customerSelect.addEventListener("change", syncSites);
+  nameInput.focus();
+
+  dialog.querySelector("#gatewayForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    const name = nameInput.value.trim();
+    const routes = dialog
+      .querySelector("#gwRoutes")
+      .value.split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const payload = {
+      id: gatewayIdFromName(name),
+      customer_id: customerSelect.value,
+      site_id: siteSelect.value,
+      name,
+      kind: dialog.querySelector("#gwKind").value.trim(),
+      status: "offline",
+      tailscale_ip: dialog.querySelector("#gwTailIp").value.trim(),
+      lan_routes: routes,
+      last_seen: "",
+    };
+    try {
+      await api("/gateways", { method: "POST", body: JSON.stringify(payload) });
+      close();
+      state.view = "gateways";
+      await load();
+    } catch (err) {
+      error.textContent = err.message;
+    }
+  });
+}
+
 function table(headers, rows) {
   return `
     <div class="table-wrap">
@@ -231,9 +360,6 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 });
 
 document.getElementById("refreshBtn").addEventListener("click", load);
-document.getElementById("enrollBtn").addEventListener("click", () => {
-  alert("Proximo passo: wizard para gerar enrolment key Headscale e bootstrap do gateway.");
-});
+document.getElementById("enrollBtn").addEventListener("click", showGatewayDialog);
 
 load();
-

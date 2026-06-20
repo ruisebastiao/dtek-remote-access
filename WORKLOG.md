@@ -15,3 +15,5 @@ WORKLOG
 - Document integrated local SSO test with `dtek-webhub` and shared JWT secret.
 - Add SQLAlchemy persistence with SQLite dev DB, idempotent seed data and
   initial CRUD/read endpoints for customers, sites, gateways, devices and grants.
+- Replace the "Novo gateway" placeholder with a real modal form that creates
+  gateways through the API and refreshes the UI.
