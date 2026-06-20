@@ -53,7 +53,8 @@ Casos principais:
 ## Estado
 
 Fase inicial de produto. Existe um scaffold FastAPI + UI estatica para validar
-a experiencia de gestao antes de ligar ao Headscale real.
+a experiencia de gestao antes de ligar ao Headscale real. O backend ja usa
+SQLite em dev para clientes, sites, gateways, equipamentos e grants iniciais.
 
 Em dev, o servico corre com `DEV_AUTH=true` e usa um utilizador root ficticio.
 Em producao deve validar o cookie/JWT `dtek_sso` emitido pelo `dtek-webhub`.

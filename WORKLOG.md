@@ -13,3 +13,5 @@ WORKLOG
 - Align Remote Access UI colors and controls with the existing Hub/Helpdesk
   dark theme.
 - Document integrated local SSO test with `dtek-webhub` and shared JWT secret.
+- Add SQLAlchemy persistence with SQLite dev DB, idempotent seed data and
+  initial CRUD/read endpoints for customers, sites, gateways, devices and grants.

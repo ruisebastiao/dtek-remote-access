@@ -13,6 +13,7 @@ def _bool(name: str, default: bool) -> bool:
 class Settings(BaseModel):
     app_name: str = "DTEK Remote Access"
     platform_key: str = "remote_access"
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./remote_access_dev.db")
 
     jwt_secret: str = os.getenv("JWT_SECRET", "")
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
@@ -30,4 +31,3 @@ class Settings(BaseModel):
 
 
 settings = Settings()
-

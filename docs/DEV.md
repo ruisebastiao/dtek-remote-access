@@ -73,18 +73,20 @@ Em producao:
 - `COOKIE_NAME=dtek_sso`
 - `platform_key=remote_access`
 
+## Estado Atual
+
+- SQLite dev persistente em `remote_access_dev.db`.
+- CRUD inicial para customers, sites, gateways e devices.
+- Integracao local com o launcher do Hub validada.
+
 ## Limites Atuais
 
-- Dados seed em memoria.
-- Sem Postgres.
 - Sem Headscale real.
-- Sem CRUD persistente.
-- Sem integracao no launcher do Hub.
+- UI ainda e maioritariamente leitura; CRUD editavel existe primeiro na API.
 
 ## Proximos Passos
 
-1. Registar `remote_access` no `dtek-webhub`.
-2. Persistir clientes/sites/gateways/equipamentos em Postgres.
-3. Trocar seed data por API CRUD.
-4. Criar adapter Headscale: listar nodes, criar preauth key, aprovar rotas.
-5. Criar wizard de enrolment do gateway.
+1. Evoluir o CRUD inicial para UI editavel.
+2. Preparar compose/Postgres para deploy.
+3. Criar adapter Headscale: listar nodes, criar preauth key, aprovar rotas.
+4. Criar wizard de enrolment do gateway.
