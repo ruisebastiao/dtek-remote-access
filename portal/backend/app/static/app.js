@@ -71,7 +71,12 @@ function setTitle() {
   document.getElementById("pageTitle").textContent = title;
   document.getElementById("pageSubtitle").textContent = subtitle;
   const primary = document.getElementById("primaryActionBtn");
-  primary.textContent = state.view === "sites" ? "Novo site" : "Novo gateway";
+  primary.textContent =
+    state.view === "sites"
+      ? "Novo site"
+      : state.view === "devices"
+        ? "Novo equipamento"
+        : "Novo gateway";
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === state.view);
   });
@@ -220,6 +225,19 @@ function sitesForCustomer(customerId) {
   return customer ? customer.sites : [];
 }
 
+function gatewaysForSite(siteId) {
+  return state.overview.gateways.filter((gateway) => gateway.site_id === siteId);
+}
+
+function deviceIdFromName(name) {
+  return `dev_${String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 52)}`;
+}
+
 function gatewayIdFromName(name) {
   return `gw_${String(name || "")
     .trim()
@@ -227,6 +245,11 @@ function gatewayIdFromName(name) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 52)}`;
+}
+
+function optionList(items, emptyLabel, labelKey = "name") {
+  if (!items.length) return `<option value="">${esc(emptyLabel)}</option>`;
+  return items.map((item) => `<option value="${esc(item.id)}">${esc(item[labelKey])}</option>`).join("");
 }
 
 function siteIdFromName(customerId, name) {
@@ -429,6 +452,140 @@ function showGatewayDialog() {
   });
 }
 
+function showDeviceDialog() {
+  if (!state.overview) return;
+  const firstCustomer = state.overview.customers[0];
+  const firstSites = firstCustomer ? sitesForCustomer(firstCustomer.id) : [];
+  const firstGateways = firstSites[0] ? gatewaysForSite(firstSites[0].id) : [];
+  const customerOptions = state.overview.customers
+    .map((customer) => `<option value="${esc(customer.id)}">${esc(customer.name)}</option>`)
+    .join("");
+
+  const dialog = document.createElement("div");
+  dialog.className = "modal-backdrop";
+  dialog.innerHTML = `
+    <form class="modal" id="deviceForm">
+      <div class="modal__head">
+        <div>
+          <h2>Novo equipamento</h2>
+          <p>Associa um HMI, PLC, robot, IPC ou outro alvo industrial a um gateway.</p>
+        </div>
+        <button class="icon-btn" type="button" data-close>&times;</button>
+      </div>
+      <div class="form-grid">
+        <label>
+          Cliente
+          <select id="devCustomer" required>${customerOptions}</select>
+        </label>
+        <label>
+          Site
+          <select id="devSite" required ${firstSites.length ? "" : "disabled"}>${optionList(firstSites, "Sem sites criados")}</select>
+        </label>
+        <label>
+          Gateway
+          <select id="devGateway" required ${firstGateways.length ? "" : "disabled"}>${optionList(firstGateways, "Sem gateways criados")}</select>
+        </label>
+        <label>
+          Tipo
+          <select id="devType">
+            <option value="HMI">HMI</option>
+            <option value="PLC">PLC</option>
+            <option value="Robot">Robot</option>
+            <option value="IPC">IPC</option>
+            <option value="Camera">Camera</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+        <label>
+          Nome
+          <input id="devName" required placeholder="MAXIPLAS_LONG_SIDE" />
+        </label>
+        <label>
+          Endereco
+          <input id="devAddress" required placeholder="192.168.10.21" />
+        </label>
+        <label class="form-grid__wide">
+          Protocolos
+          <div class="check-row">
+            ${["http", "https", "rdp", "vnc", "ssh"].map((p) => `<label><input type="checkbox" class="devProtocol" value="${p}" /> ${p.toUpperCase()}</label>`).join("")}
+          </div>
+        </label>
+      </div>
+      <p class="error" id="devError"></p>
+      <div class="modal__actions">
+        <button class="ghost" type="button" data-close>Cancelar</button>
+        <button class="primary" type="submit">Criar equipamento</button>
+      </div>
+    </form>
+  `;
+
+  document.body.appendChild(dialog);
+  const customerSelect = dialog.querySelector("#devCustomer");
+  const siteSelect = dialog.querySelector("#devSite");
+  const gatewaySelect = dialog.querySelector("#devGateway");
+  const nameInput = dialog.querySelector("#devName");
+  const error = dialog.querySelector("#devError");
+
+  function close() {
+    dialog.remove();
+  }
+
+  function syncGateways() {
+    const gateways = gatewaysForSite(siteSelect.value);
+    gatewaySelect.disabled = gateways.length === 0;
+    gatewaySelect.innerHTML = optionList(gateways, "Sem gateways criados");
+  }
+
+  function syncSitesAndGateways() {
+    const sites = sitesForCustomer(customerSelect.value);
+    siteSelect.disabled = sites.length === 0;
+    siteSelect.innerHTML = optionList(sites, "Sem sites criados");
+    syncGateways();
+  }
+
+  dialog.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", close));
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) close();
+  });
+  customerSelect.addEventListener("change", syncSitesAndGateways);
+  siteSelect.addEventListener("change", syncGateways);
+  nameInput.focus();
+
+  dialog.querySelector("#deviceForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    if (!siteSelect.value) {
+      error.textContent = "Este cliente ainda nao tem sites no Remote Access.";
+      return;
+    }
+    if (!gatewaySelect.value) {
+      error.textContent = "Este site ainda nao tem gateways no Remote Access.";
+      return;
+    }
+    const name = nameInput.value.trim();
+    const protocols = [...dialog.querySelectorAll(".devProtocol:checked")].map((item) => item.value);
+    const payload = {
+      id: deviceIdFromName(name),
+      customer_id: customerSelect.value,
+      site_id: siteSelect.value,
+      gateway_id: gatewaySelect.value,
+      name,
+      type: dialog.querySelector("#devType").value,
+      address: dialog.querySelector("#devAddress").value.trim(),
+      protocols,
+      status: "unknown",
+    };
+    try {
+      await api("/devices", { method: "POST", body: JSON.stringify(payload) });
+      close();
+      state.view = "devices";
+      await load();
+    } catch (err) {
+      error.textContent = err.message;
+    }
+  });
+}
+
 function table(headers, rows) {
   return `
     <div class="table-wrap">
@@ -483,6 +640,7 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 document.getElementById("refreshBtn").addEventListener("click", load);
 document.getElementById("primaryActionBtn").addEventListener("click", () => {
   if (state.view === "sites") showSiteDialog();
+  else if (state.view === "devices") showDeviceDialog();
   else showGatewayDialog();
 });
 

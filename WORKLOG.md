@@ -21,3 +21,5 @@ WORKLOG
   syncing only local customer shadows for Remote Access operational data.
 - Add a Sites view and "Novo site" modal so Hub clients can receive local
   Remote Access sites before gateways are assigned.
+- Add a "Novo equipamento" modal with customer/site/gateway cascade and
+  protocol selection, creating industrial devices through the API.
