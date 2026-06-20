@@ -153,9 +153,11 @@ function renderGateways() {
         <td>${chips(g.lan_routes)}</td>
         <td>${esc(g.last_seen)}</td>
         <td>${badge(g.lifecycle_status)}</td>
-        <td class="row-actions">
-          <button class="mini" type="button" data-edit-gateway="${esc(g.id)}">Editar</button>
-          <button class="mini" type="button" data-toggle-gateway="${esc(g.id)}" data-next="${g.lifecycle_status === "archived" ? "restore" : "archive"}">${g.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+        <td>
+          <div class="row-actions">
+            <button class="mini" type="button" data-edit-gateway="${esc(g.id)}">Editar</button>
+            <button class="mini" type="button" data-toggle-gateway="${esc(g.id)}" data-next="${g.lifecycle_status === "archived" ? "restore" : "archive"}">${g.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+          </div>
         </td>
       </tr>`
     )
@@ -178,9 +180,11 @@ function renderSites() {
         <td>${esc(site.customer_name)}</td>
         <td>${esc(site.id)}</td>
         <td>${badge(site.lifecycle_status)}</td>
-        <td class="row-actions">
-          <button class="mini" type="button" data-edit-site="${esc(site.id)}">Editar</button>
-          <button class="mini" type="button" data-toggle-site="${esc(site.id)}" data-next="${site.lifecycle_status === "archived" ? "restore" : "archive"}">${site.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+        <td>
+          <div class="row-actions">
+            <button class="mini" type="button" data-edit-site="${esc(site.id)}">Editar</button>
+            <button class="mini" type="button" data-toggle-site="${esc(site.id)}" data-next="${site.lifecycle_status === "archived" ? "restore" : "archive"}">${site.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+          </div>
         </td>
       </tr>`
     )
@@ -206,9 +210,11 @@ function renderDevices() {
         <td>${badge(d.status)}</td>
         <td>${esc(d.gateway_id)}</td>
         <td>${badge(d.lifecycle_status)}</td>
-        <td class="row-actions">
-          <button class="mini" type="button" data-edit-device="${esc(d.id)}">Editar</button>
-          <button class="mini" type="button" data-toggle-device="${esc(d.id)}" data-next="${d.lifecycle_status === "archived" ? "restore" : "archive"}">${d.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+        <td>
+          <div class="row-actions">
+            <button class="mini" type="button" data-edit-device="${esc(d.id)}">Editar</button>
+            <button class="mini" type="button" data-toggle-device="${esc(d.id)}" data-next="${d.lifecycle_status === "archived" ? "restore" : "archive"}">${d.lifecycle_status === "archived" ? "Restaurar" : "Arquivar"}</button>
+          </div>
         </td>
       </tr>`
     )
