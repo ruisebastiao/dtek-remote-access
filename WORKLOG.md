@@ -27,3 +27,5 @@ WORKLOG
   industrial devices.
 - Add lifecycle archive/restore support for sites, gateways and devices, with a
   UI toggle to show archived inventory.
+- Add optional read-only Headscale status integration and UI tab for future
+  TowerV2 control plane monitoring.

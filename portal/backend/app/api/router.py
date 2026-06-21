@@ -12,6 +12,7 @@ from app.models.industrial_device import IndustrialDevice
 from app.models.site import Site
 from app.schemas import CustomerWrite, GatewayWrite, IndustrialDeviceWrite, SiteWrite
 from app.services import mock_data
+from app.services import headscale
 from app.services.hub import fetch_hub_clients, sync_hub_clients
 from app.services.storage import pack_list, unpack_list, utc_now
 
@@ -83,6 +84,16 @@ def overview(
 @router.get("/users")
 def users(_user: TokenUser = Depends(require_remote_roles("admin", "root"))) -> dict:
     return {"users": mock_data.USERS}
+
+
+@router.get("/headscale/status")
+def headscale_status(_user: TokenUser = Depends(get_current_user)) -> dict:
+    return headscale.status()
+
+
+@router.get("/headscale/nodes")
+def headscale_nodes(_user: TokenUser = Depends(get_current_user)) -> dict:
+    return headscale.nodes()
 
 
 @router.get("/access-grants")

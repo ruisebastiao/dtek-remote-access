@@ -3,6 +3,7 @@ const state = {
   me: null,
   overview: null,
   users: [],
+  headscale: null,
   showArchived: false,
 };
 
@@ -11,6 +12,7 @@ const titles = {
   sites: ["Sites", "Sites industriais associados aos clientes do Hub."],
   gateways: ["Gateways", "Dispositivos instalados nos clientes."],
   devices: ["Equipamentos", "Alvos industriais acessiveis pela VPN."],
+  headscale: ["Headscale", "Estado read-only do control plane VPN."],
   users: ["Users & acesso", "Permissoes operacionais por utilizador do Hub."],
 };
 
@@ -79,6 +81,7 @@ function setTitle() {
       : state.view === "devices"
         ? "Novo equipamento"
         : "Novo gateway";
+  primary.hidden = state.view === "headscale";
   archiveToggle.textContent = state.showArchived ? "Ocultar arquivados" : "Mostrar arquivados";
   archiveToggle.hidden = !["sites", "gateways", "devices"].includes(state.view);
   document.querySelectorAll(".nav-item").forEach((button) => {
@@ -242,6 +245,51 @@ function renderUsers() {
     </section>
     <div style="height: 16px"></div>
     ${table(["Utilizador", "Role Hub", "Role Remote", "Grants", "Estado"], rows)}
+  `;
+}
+
+function renderHeadscale() {
+  const data = state.headscale || {};
+  const status = data.status || {};
+  const nodes = data.nodes || [];
+  const statusBadge = !status.configured
+    ? badge("not configured")
+    : status.connected
+      ? badge("connected")
+      : badge("offline");
+  const rows = nodes
+    .map(
+      (node) => `
+      <tr>
+        <td><strong>${esc(node.name || node.id)}</strong><br /><span class="muted">${esc(node.id)}</span></td>
+        <td>${esc(node.user || "-")}</td>
+        <td>${chips(node.ip_addresses)}</td>
+        <td>${badge(node.online ? "online" : "offline")}</td>
+        <td>${esc(node.last_seen || "-")}</td>
+        <td>${chips(node.routes)}</td>
+      </tr>`
+    )
+    .join("");
+  return `
+    <section class="panel">
+      <div class="panel-row">
+        <div>
+          <h2>Control plane Headscale</h2>
+          <p class="muted">${esc(status.message || "Estado indisponivel.")}</p>
+        </div>
+        <div class="panel-badges">
+          ${badge("read-only")}
+          ${statusBadge}
+        </div>
+      </div>
+      <div class="kv-grid">
+        <div><span>URL</span><strong>${esc(status.url || "HEADSCALE_URL por configurar")}</strong></div>
+        <div><span>Configurado</span><strong>${status.configured ? "Sim" : "Nao"}</strong></div>
+        <div><span>Ligacao</span><strong>${status.connected ? "OK" : "Sem ligacao"}</strong></div>
+      </div>
+    </section>
+    <div style="height: 16px"></div>
+    ${table(["Node", "User", "IPs", "Estado", "Ultimo contacto", "Rotas"], rows)}
   `;
 }
 
@@ -645,6 +693,7 @@ function render() {
   if (state.view === "gateways") app.innerHTML = renderGateways();
   else if (state.view === "sites") app.innerHTML = renderSites();
   else if (state.view === "devices") app.innerHTML = renderDevices();
+  else if (state.view === "headscale") app.innerHTML = renderHeadscale();
   else if (state.view === "users") app.innerHTML = renderUsers();
   else app.innerHTML = renderOverview();
   wireEditButtons();
@@ -690,14 +739,17 @@ async function load() {
   const app = document.getElementById("app");
   try {
     app.innerHTML = '<div class="loading">A carregar...</div>';
-    const [me, overview, usersResponse] = await Promise.all([
+    const [me, overview, usersResponse, headscaleStatus, headscaleNodes] = await Promise.all([
       api("/me"),
       api(`/overview${state.showArchived ? "?include_archived=true" : ""}`),
       api("/users").catch(() => ({ users: [] })),
+      api("/headscale/status").catch((err) => ({ message: err.message, configured: false, connected: false, read_only: true })),
+      api("/headscale/nodes").catch(() => ({ nodes: [] })),
     ]);
     state.me = me;
     state.overview = overview;
     state.users = usersResponse.users;
+    state.headscale = { status: headscaleStatus, nodes: headscaleNodes.nodes || [] };
     render();
   } catch (err) {
     app.innerHTML = `<div class="error">${esc(err.message)}</div>`;
@@ -717,6 +769,7 @@ document.getElementById("archiveToggleBtn").addEventListener("click", async () =
   await load();
 });
 document.getElementById("primaryActionBtn").addEventListener("click", () => {
+  if (state.view === "headscale") return;
   if (state.view === "sites") showSiteDialog();
   else if (state.view === "devices") showDeviceDialog();
   else showGatewayDialog();
