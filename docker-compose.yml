@@ -1,0 +1,26 @@
+# Production compose for Remote Access, orchestrated by dtek-webplatform.
+# Hub Service Provider: uses the shared Postgres and dtek-net network.
+services:
+  remote-access:
+    build: ./portal/backend
+    image: dtek-remote-access:${REMOTE_ACCESS_TAG:-latest}
+    container_name: dtek-remote-access
+    environment:
+      DEV_AUTH: "false"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-dtek}:${POSTGRES_PASSWORD}@dtek-postgres:5432/remote_access
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      COOKIE_NAME: ${COOKIE_NAME:-dtek_sso}
+      HUB_URL: ${HUB_URL:-https://hub.dreamforit.com}
+      HEADSCALE_URL: ${HEADSCALE_URL:-https://vpn.dreamforit.com:4433}
+      HEADSCALE_API_KEY: ${HEADSCALE_API_KEY:-}
+      HEADSCALE_TIMEOUT: ${HEADSCALE_TIMEOUT:-5}
+    ports:
+      - "${REMOTE_ACCESS_PORT:-8003}:8000"
+    networks:
+      - dtek-net
+    restart: unless-stopped
+
+networks:
+  dtek-net:
+    external: true

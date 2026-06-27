@@ -84,13 +84,28 @@ Em producao:
 
 ## Limites Atuais
 
-- Sem Headscale real.
-- UI ainda e maioritariamente leitura; CRUD editavel existe primeiro na API.
+- Operacoes Headscale ainda em modo read-only.
+- Criacao de enrolment keys, aprovacao de rotas e ACLs ainda nao estao expostas
+  na UI.
 
 ## Proximos Passos
 
-1. Criar UI para sites de cliente.
-2. Evoluir o restante CRUD inicial para UI editavel.
-3. Preparar compose/Postgres para deploy.
-4. Criar adapter Headscale: listar nodes, criar preauth key, aprovar rotas.
-5. Criar wizard de enrolment do gateway.
+1. Criar wizard de enrolment do gateway.
+2. Passar do adapter Headscale read-only para operacoes controladas.
+3. Gerar preauth keys sem guardar segredos.
+4. Aprovar rotas a partir da UI.
+5. Criar ACLs por cliente/site/equipamento.
+
+## Deploy
+
+O repo inclui `docker-compose.yml` para ser consumido pelo `dtek-webplatform`.
+
+Variaveis principais:
+
+```text
+REMOTE_ACCESS_PORT=8003
+HEADSCALE_URL=https://vpn.dreamforit.com:4433
+HEADSCALE_API_KEY=<api key gerada no Headscale>
+```
+
+`HEADSCALE_API_KEY` e segredo operacional e nao deve ser commitado.

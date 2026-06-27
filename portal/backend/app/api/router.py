@@ -11,7 +11,6 @@ from app.models.gateway import Gateway
 from app.models.industrial_device import IndustrialDevice
 from app.models.site import Site
 from app.schemas import CustomerWrite, GatewayWrite, IndustrialDeviceWrite, SiteWrite
-from app.services import mock_data
 from app.services import headscale
 from app.services.hub import fetch_hub_clients, sync_hub_clients
 from app.services.storage import pack_list, unpack_list, utc_now
@@ -66,7 +65,7 @@ def overview(
             "gateways": len(gateways),
             "gateways_online": len(online_gateways),
             "devices": len(devices),
-            "users": len(mock_data.USERS),
+            "users": 1 if user.id else 0,
         },
         "customers": customers,
         "gateways": gateways,
@@ -75,15 +74,28 @@ def overview(
             {
                 "time": utc_now(),
                 "level": "info",
-                "message": "Persistent dev database loaded; Headscale adapter not connected yet.",
+                "message": "Remote Access loaded with Hub/Headscale-backed data.",
             }
         ],
     }
 
 
 @router.get("/users")
-def users(_user: TokenUser = Depends(require_remote_roles("admin", "root"))) -> dict:
-    return {"users": mock_data.USERS}
+def users(user: TokenUser = Depends(require_remote_roles("admin", "root"))) -> dict:
+    return {
+        "users": [
+            {
+                "hub_user_id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "client_id": user.client_id,
+                "hub_role": user.role,
+                "remote_role": user.platform_role or ("root" if user.role == "root" else ""),
+                "grants": [],
+                "status": "active",
+            }
+        ]
+    }
 
 
 @router.get("/headscale/status")

@@ -450,7 +450,7 @@ function showGatewayDialog(existing = null) {
         </label>
         <label>
           Nome
-          <input id="gwName" required placeholder="GW-MAXIPLAS-02" value="${esc(existing?.name || "")}" />
+          <input id="gwName" required placeholder="GW-CLIENTE-01" value="${esc(existing?.name || "")}" />
         </label>
         <label>
           Tipo

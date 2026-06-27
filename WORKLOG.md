@@ -35,3 +35,11 @@ WORKLOG
   centrally in `dtek-webhub`, while Remote Access stores only VPN-specific
   grants/configuration; normal users are read/operation limited and only
   `admin`/`root` can change sensitive VPN configuration.
+- Add production Dockerfile and `docker-compose.yml` so `dtek-webplatform` can
+  deploy Remote Access as a Service Provider on port 8003.
+- Extend the read-only Headscale adapter to expose real
+  `approvedRoutes`/`availableRoutes`/`subnetRoutes` from Headscale v0.29.
+- Document production deployment variables, including the non-versioned
+  `HEADSCALE_API_KEY`.
+- Remove local dummy/demo seed data from dev; customers now come from Hub when
+  a real Hub token is present, and VPN state comes from Headscale.

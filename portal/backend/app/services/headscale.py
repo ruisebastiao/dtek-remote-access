@@ -92,19 +92,33 @@ def _normalize_node(item: dict) -> dict:
     else:
         user_name = str(user)
 
+    routes = _list_value(
+        item.get("routes")
+        or item.get("advertisedRoutes")
+        or item.get("subnetRoutes")
+        or item.get("approvedRoutes")
+        or item.get("availableRoutes")
+    )
+
+    ip_addresses = _list_value(
+        item.get("ipAddresses")
+        or item.get("ip_addresses")
+        or item.get("addresses")
+        or item.get("ips")
+    )
+
     return {
         "id": str(item.get("id") or item.get("nodeId") or item.get("machineKey") or ""),
         "name": item.get("name") or item.get("givenName") or item.get("hostname") or "",
         "user": user_name,
-        "ip_addresses": _list_value(
-            item.get("ipAddresses")
-            or item.get("ip_addresses")
-            or item.get("addresses")
-            or item.get("ips")
-        ),
+        "ip_address": _primary_ip(ip_addresses),
+        "ip_addresses": ip_addresses,
         "online": bool(item.get("online") or item.get("isOnline")),
         "last_seen": item.get("lastSeen") or item.get("last_seen") or "",
-        "routes": _list_value(item.get("routes") or item.get("advertisedRoutes")),
+        "routes": routes,
+        "approved_routes": _list_value(item.get("approvedRoutes")),
+        "available_routes": _list_value(item.get("availableRoutes")),
+        "serving_routes": _list_value(item.get("subnetRoutes") or item.get("routes")),
     }
 
 
@@ -114,3 +128,10 @@ def _list_value(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(item) for item in value]
     return [str(value)]
+
+
+def _primary_ip(addresses: list[str]) -> str:
+    for address in addresses:
+        if "." in address:
+            return address
+    return addresses[0] if addresses else ""
