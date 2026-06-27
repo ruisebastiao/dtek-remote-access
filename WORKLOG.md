@@ -29,3 +29,9 @@ WORKLOG
   UI toggle to show archived inventory.
 - Add optional read-only Headscale status integration and UI tab for future
   TowerV2 control plane monitoring.
+
+2026-06-28
+- Document the final identity/role split for Remote Access: users stay managed
+  centrally in `dtek-webhub`, while Remote Access stores only VPN-specific
+  grants/configuration; normal users are read/operation limited and only
+  `admin`/`root` can change sensitive VPN configuration.
