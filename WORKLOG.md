@@ -43,3 +43,4 @@ WORKLOG
   `HEADSCALE_API_KEY`.
 - Remove local dummy/demo seed data from dev; customers now come from Hub when
   a real Hub token is present, and VPN state comes from Headscale.
+- Add initial semver metadata for release `v0.1.0`.

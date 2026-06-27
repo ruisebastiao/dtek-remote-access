@@ -53,10 +53,11 @@ Casos principais:
 ## Estado
 
 Fase inicial de produto. Existe um scaffold FastAPI + UI estatica para validar
-a experiencia de gestao antes de ligar ao Headscale real. O backend ja usa
-SQLite em dev para sites, gateways, equipamentos e grants iniciais. Os clientes
-devem vir do `dtek-webhub`; o Remote Access mantem apenas uma sombra local para
-associar dados operacionais.
+a experiencia de gestao ligada ao Headscale real em modo read-only. O backend
+usa SQLite em dev para sites, gateways, equipamentos e grants criados
+explicitamente; nao cria clientes, sites ou gateways ficticios.
 
-Em dev, o servico corre com `DEV_AUTH=true` e usa um utilizador root ficticio.
-Em producao deve validar o cookie/JWT `dtek_sso` emitido pelo `dtek-webhub`.
+Os clientes devem vir do `dtek-webhub`; o Remote Access mantem apenas a sombra
+local necessaria para associar dados operacionais. Em dev, `DEV_AUTH=true`
+fornece apenas um root tecnico para conseguir abrir a consola sem semear dados.
+Em producao valida o cookie/JWT `dtek_sso` emitido pelo `dtek-webhub`.
